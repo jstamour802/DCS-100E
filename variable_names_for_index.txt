@@ -1,0 +1,12 @@
+List of variables for DCS web server
+
+Output1 Brightness (%) = OP1B
+Output1 Current (A) = OP1I
+Output1 Pulsewidth (uS) = OP1P
+Output1 Pulse Delay (uS) = OP1D
+
+Output1 Mode Continuous = OP1MC
+Output1 Mode Pulsed = OP1MP
+Output1 Mode Gated = OP1MG
+Output1 Mode Repeated Pulse = OP1MR
+
