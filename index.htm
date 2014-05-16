@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>I/O COMMANDER</title>
+		<meta name="viewport" content="width=device-width, user-scalable=no">  
+        <script>
+		strLED1 = "";
+		strLED2 = "";
+		strLED3 = "";
+		strLED4 = "";
+		strOP1B = "";
+		strOP1P = "";
+		strOP1D = "";
+		
+		var LED3_state = 0;
+		var LED4_state = 0;
+		function GetArduinoIO()
+		{
+			nocache = "&nocache=" + Math.random() * 1000000;
+			var request = new XMLHttpRequest();
+			request.onreadystatechange = function()
+			{
+				if (this.readyState == 4) {
+					if (this.status == 200) {
+						if (this.responseXML != null) {
+							// XML file received - contains analog values, switch values and LED states
+							var count;
+							// get analog inputs
+							var num_an = this.responseXML.getElementsByTagName('analog').length;
+							for (count = 0; count < num_an; count++) {
+								document.getElementsByClassName("analog")[count].innerHTML =
+									this.responseXML.getElementsByTagName('analog')[count].childNodes[0].nodeValue;
+							}
+							// get switch inputs
+							var num_an = this.responseXML.getElementsByTagName('switch').length;
+							for (count = 0; count < num_an; count++) {
+								document.getElementsByClassName("switches")[count].innerHTML =
+									this.responseXML.getElementsByTagName('switch')[count].childNodes[0].nodeValue;
+							}
+							//get output 1 settings
+							//var num_an = this.responseXML.getElementsByTagName('op1').length;
+							//for (count = 0; count < num_an; count++) {
+							//	document.getElementsByClassName("op1")[count].innerHTML =
+							//		this.responseXML.getElementsByTagName('op1')[count].childNodes[0].nodeValue;
+							//}
+						
+							//var num_an = this.responseXML.getElementsByTagName('op1').length;		
+								document.getElementsbyId("OP1B")[0].innerHTML =
+									this.responseXML.getElementsByTagName('op1')[0].childNodes[0].nodeValue;
+							
+							// LED 1
+							if (this.responseXML.getElementsByTagName('LED')[0].childNodes[0].nodeValue === "checked") {
+								document.LED_form.LED1.checked = true;
+							}
+							else {
+								document.LED_form.LED1.checked = false;
+							}
+							// LED 2
+							if (this.responseXML.getElementsByTagName('LED')[1].childNodes[0].nodeValue === "checked") {
+								document.LED_form.LED2.checked = true;
+							}
+							else {
+								document.LED_form.LED2.checked = false;
+							}
+							// LED 3
+							if (this.responseXML.getElementsByTagName('LED')[2].childNodes[0].nodeValue === "on") {
+								document.getElementById("LED3").innerHTML = "LED 3 is ON (D8)";
+								LED3_state = 1;
+							}
+							else {
+								document.getElementById("LED3").innerHTML = "LED 3 is OFF (D8)";
+								LED3_state = 0;
+							}
+							// LED 4
+							if (this.responseXML.getElementsByTagName('LED')[3].childNodes[0].nodeValue === "on") {
+								document.getElementById("LED4").innerHTML = "LED 4 is ON (D9)";
+								LED4_state = 1;
+							}
+							else {
+								document.getElementById("LED4").innerHTML = "LED 4 is OFF (D9)";
+								LED4_state = 0;
+							}
+							if (this.responseXML.getElementsByTagName('device_status')[0].childNodes[0].nodeValue === "YES") {
+								document.getElementByClassName("RDY").innerHTML = "Device Ready";
+							}
+						}
+					}
+				}
+			}
+			// send HTTP GET request with LEDs to switch on/off if any
+			request.open("GET", "ajax_inputs" + strLED1 + strLED2 + strLED3 + strLED4 + strOP1B + strOP1P + strOP1D + nocache, true);
+			request.send(null);
+			setTimeout('GetArduinoIO()', 1000);
+			strLED1 = "";
+			strLED2 = "";
+			strLED3 = "";
+			strLED4 = "";
+			strOP1B = "";
+			strOP1P = "";
+			strOP1D = "";
+			
+		}
+		// service LEDs when checkbox checked/unchecked
+		function GetCheck()
+		{
+			if (LED_form.LED1.checked) {
+				strLED1 = "&LED1=1";
+			}
+			else {
+				strLED1 = "&LED1=0";
+			}
+			if (LED_form.LED2.checked) {
+				strLED2 = "&LED2=1";
+			}
+			else {
+				strLED2 = "&LED2=0";
+			}
+		}
+		function GetButton1()
+		{
+			if (LED3_state === 1) {
+				LED3_state = 0;
+				strLED3 = "&LED3=0";
+			}
+			else {
+				LED3_state = 1;
+				strLED3 = "&LED3=1";
+			}
+		}
+		function GetButton2()
+		{
+			if (LED4_state === 1) {
+				LED4_state = 0;
+				strLED4 = "&LED4=0";
+			}
+			else {
+				LED4_state = 1;
+				strLED4 = "&LED4=1";
+			}
+		}
+		function GetOP1()
+		{
+			var x=document.getElementById("OP1B");
+			strOP1B = "&OP1B=" + x.value;
+		}
+		
+	</script>
+	<style>
+		.IO_box {
+			float: left;
+			margin: 0 20px 20px 0;
+			border: 1px solid black;
+			padding: 0 5px 0 5px;
+			width: 120px;
+		}
+		.IO_box_larger {
+			float: left;
+			margin: 0 20px 20px 0;
+			border: 1px solid black;
+			padding: 0 5px 0 5px;
+			width: 320px;
+		}
+		h1 {
+			font-size: 120%;
+			color: #008357;
+			margin: 0 0 10px 0;
+		}
+		h2 {
+			font-size: 85%;
+			color: #008357;
+			margin: 5px 0 5px 0;
+		}
+		p, form, button {
+			font-size: 80%;
+			color: #252525;
+		}
+		.small_text {
+			font-size: 70%;
+			color: #737373;
+		}
+	</style>
+    </head>
+	
+    <body onload="GetArduinoIO()">
+        <h1>DCS-100E -- Lighting Appliance</h1>
+		<h2>Configuration Tool</h2>
+		
+		<p> <class="device_status">Device Not Ready</div></p>
+		<div class="IO_box_larger">
+			<h1>Output 1</h1>
+			<h2>Mode</h2>
+			<form id= "op1_mode_radio_buttons" name="op1_mode_radio_form">
+				<input type="radio" name="mode" value="constant" checked>constant
+				<input type="radio" name="mode" value="pulsed">pulsed
+				<input type="radio" name="mode" value="gated">gated
+			</form>
+			<h2>Trigger</h2>
+			<form id= "op1_trigger_radio_buttons" name="op1_trigger_radio_form">
+				<input type="radio" name="trigger" value="Trigger1">Trigger1
+				<input type="radio" name="trigger" value="Trigger2">Trigger2
+			</form>
+		    <h2>Settings<h2>
+			<form id= "op1_brightness" name="op1_brightness_form">
+				<input class="op1"type="range" id="OP1B" min="0" max="65535" step="1" value="0"  oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />                <!---->
+				 <input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP1B.value=this.value" onchange="GetOP1()" /> Brightness (%)<br>
+			</form>
+			<form id= "op1_pulsewidth" name="op1_pulsewidth_form">
+				<input class="op1"type="range" id="OP1P" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP1P.value=this.value" onchange="GetOP1()"/> Pulse Width (us)<br>
+			</form>
+			<form id= "op1_delay" name="op1_pulsewidth_form">
+				<input class="op1"type="range" id="OP1D" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP1D.value=this.value" onchange="GetOP1()"/> Pulse Delay (us)<br>
+			</form>
+			<p> <class="small_text">value changes take effect immediately</p>
+			<button type="button" id="submit" onclick="GetOP1()">Submit</button>
+		</div>
+		
+				<div class="IO_box_larger">
+			<h1>Output 2</h1>
+			<h2>Mode</h2>
+			<form id= "radio_buttons" name="radio_form">
+				<input type="radio" name="mode" value="constant" checked>constant
+				<input type="radio" name="mode" value="pulsed">pulsed
+				<input type="radio" name="mode" value="gated">gated
+			</form>
+			<h2>Trigger</h2>
+			<form id= "op1_trigger_radio_buttons" name="op1_trigger_radio_form">
+				<input type="radio" name="trigger" value="Trigger1">Trigger1
+				<input type="radio" name="trigger" value="Trigger2">Trigger2
+			</form>
+		    <h2>Settings<h2>
+			<form id= "op1_brightness" name="op1_brightness_form">
+				<input type="range" id="OP2B" min="0" max="65535" step="1" value="0" onchange="GetOP1()" oninput="this.form.amountInput.value=this.value"  />
+				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP2B.value=this.value" onchange="GetOP1()" /> Brightness (%)<br>
+			</form>
+			<form id= "op1_pulsewidth" name="op1_pulsewidth_form">
+				<input type="range" id="OP2P" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP2P.value=this.value" onchange="GetOP1()"/> Pulse Width (us)<br>
+			</form>
+			<form id= "op1_delay" name="op1_pulsewidth_form">
+				<input type="range" id="OP2D" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP2D.value=this.value" onchange="GetOP1()"/> Pulse Delay (us)<br>
+			</form>
+			<p> <class="small_text">value changes take effect immediately</p>
+			<button type="button" id="submit" onclick="GetOP1()">Submit</button>
+		</div>
+		
+		
+        <div class="IO_box">
+			<h2>Analog Inputs</h2>
+			<p>A2: <span class="analog">...</span></p>
+			<p>A3: <span class="analog">...</span></p>
+			<p>A4: <span class="analog">...</span></p>
+			<p>A5: <span class="analog">...</span></p>
+		</div>
+		<div class="IO_box">
+			<h2>Trigger Inputs</h2>
+			<p>Trigger 1 (D2): <span class="switches">...</span></p>
+			<p>Trigger 2 (D3): <span class="switches">...</span></p>
+			<p>Switch 3 (D5): <span class="switches">...</span></p>
+		</div>
+		
+		
+		<!--
+		<div class="IO_box">
+			<h2>Checkboxes</h2>
+			<form id="check_LEDs" name="LED_form">
+				<input type="checkbox" name="LED1" value="0" onclick="GetCheck()" />LED 1 (D6)<br /><br />
+				<input type="checkbox" name="LED2" value="0" onclick="GetCheck()" />LED 2 (D7)<br /><br />
+			</form>
+		</div>
+		
+		<div class="IO_box">
+			<h2>Buttons</h2>
+				<button type="button" id="LED3" onclick="GetButton1()">LED 3 is OFF (D8)</button><br /><br />
+				<button type="button" id="LED4" onclick="GetButton2()">LED 4 is OFF (D9)</button><br /><br />
+			<p class="small_text">D10 to D13 used by Ethernet shield</p>
+		</div>
+		-->
+		
+		
+    </body>
+</html>
