@@ -6,23 +6,68 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
-// size of buffer used to capture HTTP requests
-#define REQ_BUF_SZ  100
+
+#define REQ_BUF_SZ  100    // size of buffer used to capture HTTP requests
 //#include <stdio.h>
 
-// MAC address from Ethernet shield sticker under board
+/* --------- Device Info ----------------------------------------------------------------*/
+#define DEVICE_NAME "DCS-100E"
+#define FIRMWARE_VER "FW070906_001"
+
+/* --------------------------------------------------------------------------------------*/
+/* ---------  CI ( command interface) ---------------------------------------------------*/
+#define MAX_COMMAND_LEN             (10)
+#define MAX_PARAMETER_LEN           (10)
+#define COMMAND_TABLE_SIZE          (16)
+#define TO_UPPER(x) (((x >= 'a') && (x <= 'z')) ? ((x) - ('a' - 'A')) : (x))
+
+char gCommandBuffer[MAX_COMMAND_LEN + 1];
+char gParamBuffer[MAX_PARAMETER_LEN + 1];
+long gParamValue;
+
+
+typedef struct {
+  char const    *name;
+  void          (*function)(void);
+} command_t;
+
+//the list of commands
+command_t const gCommandTable[COMMAND_TABLE_SIZE] = {
+
+  //***standard SCPI commands
+  
+  {"*IDN?",     get_device_ID, },
+ // {"*RST",      reset_device, },
+ // {"SYST:ERR?", get_syst_err,  },
+ // {"CLS",       clear_syst_err, },
+ // {"*CFG?",     get_config_info,},	     // returns configuration info, current settings, etc..
+  
+  //***manufacturing only commands
+ 
+  
+  //*** User Commands - non SCPI standard 
+ 
+  {NULL,      NULL }
+
+};
+
+
+/* --------------------------------------------------------------------------------------*/
+/* --------- TCP-IP/UDP Default setup----------------------------------------------------*/
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-IPAddress ip(192, 168, 24, 177); // IP address, may need to change depending on network
-EthernetServer server(80);  // create a server at port 80
+IPAddress ip(192, 168, 24, 177);                     // IP address, may need to change depending on network
+EthernetServer server(80);                           // create a server at port 80
+char HTTP_req[REQ_BUF_SZ] = {0};                     // buffered HTTP request stored as null terminated string
+char req_index = 0;                                  // index into HTTP_req buffer
+//todo add UDP
 
+/* ---------------------------------------------------------------------------------------*/
+/*---------- SD Card Setup----------------------------------------------------------------*/
+const int sdchipSelect = SD_CHIP_SELECT_PIN;
+File webFile;                                        // the web page file on the SD card
 
-
-File webFile;               // the web page file on the SD card
-char HTTP_req[REQ_BUF_SZ] = {0}; // buffered HTTP request stored as null terminated string
-char req_index = 0;              // index into HTTP_req buffer
-boolean LED_state[4] = {0}; // stores the states of the LEDs
-
-
+/* ---------------------------------------------------------------------------------------*/
+/*---------- Output Settings Variables ---------------------------------------------------*/
 int output1_brightness = 0;
 int output1_pulsewidth = 0;
 int output1_pulsedelay = 0;
@@ -35,9 +80,12 @@ int output2_pulsedelay = 0;
 int output2_triggernum = 0;
 int output2_mode = 0;
 
-const int sdchipSelect = SD_CHIP_SELECT_PIN;
 
 
+boolean LED_state[4] = {0};                          // stores the states of the LEDs
+
+//---------------------------------------------------------------------------------------//
+/*~~~~~~~~~~~~~~~~~~~~~~~~Begin Program Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 void setup()
 {
   
@@ -101,8 +149,11 @@ delay(1000);
 
 
 
-}
-
+}  // End of Setup()
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+//****************************************************************************************//
+//****************************************************************************************//
+//~~~~~~~~~~~~~~~~~~~~~~~~Main Loop~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 void loop()
 {
   
@@ -110,6 +161,7 @@ void loop()
   
  EthernetClient client = server.available();  // try to get client
  
+  //~~~~~~~~~~~~~~~~~~~ Check for Clients and Serve the webpage from the SD Card~~~~~~~~~~// 
   if (client) {  // got client?
   
     boolean currentLineIsBlank = true;
@@ -182,11 +234,32 @@ void loop()
     delay(1);      // give the web browser time to receive the data
     client.stop(); // close the connection
   } // end if (client)
-}
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+} // End of Loop()
 
 
-// checks if received HTTP request is switching on/off LEDs
-// also saves the state of the LEDs
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+//****************************************************************************************//
+//****************************************************************************************//
+//~~~~~~~~~~~~~~~~~~~~~~~~FUNCTIONS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+
+/**********************************************************************
+ *
+ * Function:    SetLEDs
+ *
+ * Description: checks if received HTTP request is changing values and saves the state of 
+ *              values if changed
+ *             
+ *
+ * Notes:     
+ *
+ * Returns:     
+ *
+ **********************************************************************/
+
 void SetLEDs(void)
 {
   // LED 1 (pin 6)
@@ -225,6 +298,7 @@ void SetLEDs(void)
     LED_state[3] = 0;  // save LED state
     digitalWrite(9, LOW);
   }
+  
   if (StrContains(HTTP_req, "OP1B=")) {  
       
     char *req = HTTP_req;
@@ -248,9 +322,19 @@ void SetLEDs(void)
 
   
 
-
-// send the XML file with analog values, switch status
-//  and LED status
+/**********************************************************************
+ *
+ * Function:    XML_Response
+ *
+ * Description: sends an XML response to the web server to update forms on the web page
+ *              
+ *             
+ *
+ * Notes:      
+ *             
+ * Returns:     None.
+ *
+ **********************************************************************/
 void XML_response(EthernetClient cl)
 {
   int analog_val;            // stores value read from analog inputs
@@ -337,7 +421,21 @@ void XML_response(EthernetClient cl)
   cl.print("</inputs>");
 }
 
-// sets every element of str to 0 (clears array)
+
+/**********************************************************************
+ *
+ * Function:    StrClear
+ *
+ * Description: sets every element of str to 0 (clears array)
+ *              
+ *             
+ *
+ * Notes:      
+ *             
+ * Returns:     None.
+ *
+ **********************************************************************/
+
 void StrClear(char *str, char length)
 {
   for (int i = 0; i < length; i++) {
@@ -345,9 +443,24 @@ void StrClear(char *str, char length)
   }
 }
 
-// searches for the string sfind in the string str
-// returns 1 if string found
-// returns 0 if string not found
+
+
+
+/**********************************************************************
+ *
+ * Function:    StrContains
+ *
+ * Description: searches for the string sfind in the string str
+ *              
+ *             
+ *
+ * Notes:      
+ *             
+ * Returns:     1 if string found
+ *              0 if string not found
+ *
+ **********************************************************************/
+
 char StrContains(char *str, char *sfind)
 {
   char found = 0;
@@ -375,4 +488,175 @@ char StrContains(char *str, char *sfind)
   return 0;
 }
 
+/**********************************************************************
+ *
+ * Function:    get_device_ID
+ *
+ * Description: prints device name and firmware revision
+ *             
+ *
+ * Notes:     
+ *
+ * Returns:     
+ *
+ **********************************************************************/
 
+void get_device_ID(void)
+{
+Serial.println(DEVICE_NAME);
+Serial.println(FIRMWARE_VER);
+	//todo add code here
+}
+
+
+/**********************************************************************
+ *
+ * Function:    check_serial
+ *
+ * Description: listens for commands sent to the controller via serial
+ *             
+ *
+ * Notes:     
+ *
+ * Returns:     
+ *
+ **********************************************************************/
+void check_serial(void){
+  char rcvChar;
+  int  bCommandReady = false;
+
+  if (Serial.available() > 0) {
+    /* Wait for a character. */
+    rcvChar = Serial.read();
+
+    /* Echo the character back to the serial port. */
+    Serial.print(rcvChar);
+
+    /* Build a new command. */
+    bCommandReady = cliBuildCommand(rcvChar);
+  }
+
+  /* Call the CLI command processing routine to verify the command entered 
+   * and call the command function; then output a new prompt. */
+  if (bCommandReady == true) {
+    bCommandReady = false;
+    cliProcessCommand();
+    Serial.print('>');
+  }
+ }
+/**********************************************************************
+ *
+ * Function:    cliBuildCommand
+ *
+ * Description: Put received characters into the command buffer or the
+ *              parameter buffer. Once a complete command is received
+ *              return true.
+ *
+ * Notes:       
+ *
+ * Returns:     true if a command is complete, otherwise false.
+ *
+ **********************************************************************/
+
+int cliBuildCommand(char nextChar) {
+  static uint8_t idx = 0; //index for command buffer
+  static uint8_t idx2 = 0; //index for parameter buffer
+  enum { COMMAND, PARAM };
+  static uint8_t state = COMMAND;
+  /* Don't store any new line characters or spaces. */
+  if ((nextChar == '\n') || (nextChar == ' ') || (nextChar == '\t') || (nextChar == '\r'))
+    return false;
+
+  /* The completed command has been received. Replace the final carriage
+   * return character with a NULL character to help with processing the
+   * command. */
+  //if (nextChar == '\r')
+  if (nextChar == ';') {
+    gCommandBuffer[idx] = '\0';
+    gParamBuffer[idx2] = '\0';
+    idx = 0;
+    idx2 = 0;
+    state = COMMAND;
+    return true;
+  }
+
+  if (nextChar == ',') {
+    state = PARAM;
+    return false;
+  }
+
+  if (state == COMMAND) {
+    /* Convert the incoming character to upper case. This matches the case
+     * of commands in the command table. Then store the received character
+     * in the command buffer. */
+    gCommandBuffer[idx] = TO_UPPER(nextChar);
+    idx++;
+
+    /* If the command is too long, reset the index and process
+     * the current command buffer. */
+    if (idx > MAX_COMMAND_LEN) {
+      idx = 0;
+       return true;
+    }
+  }
+  if (state == PARAM) {
+    /* Store the received character in the parameter buffer. */
+    gParamBuffer[idx2] = nextChar;
+    idx2++;
+
+    /* If the command is too long, reset the index and process
+     * the current parameter buffer. */
+    if (idx > MAX_PARAMETER_LEN) {
+      idx2 = 0;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+
+/**********************************************************************
+ *
+ * Function:    cliProcessCommand
+ *
+ * Description: Look up the command in the command table. If the
+ *              command is found, call the command's function. If the
+ *              command is not found, output an error message.
+ *
+ * Notes:       
+ *
+ * Returns:     None.
+ *
+ **********************************************************************/
+void cliProcessCommand(void)
+{
+  int bCommandFound = false;
+  int idx;
+
+  /* Convert the parameter to an integer value. 
+   * If the parameter is empty, gParamValue becomes 0. */
+  gParamValue = strtol(gParamBuffer, NULL, 0);
+
+  /* Search for the command in the command table until it is found or
+   * the end of the table is reached. If the command is found, break
+   * out of the loop. */
+  for (idx = 0; gCommandTable[idx].name != NULL; idx++) {
+  if (strcmp(gCommandTable[idx].name, gCommandBuffer) == 0) {
+      bCommandFound = true;
+      break;
+    }
+  }
+
+  /* If the command was found, call the command function. Otherwise,
+   * output an error message. */
+  if (bCommandFound == true) {
+    Serial.println();
+    (*gCommandTable[idx].function)();
+  }
+  else {
+    Serial.println();
+    Serial.println("Command not found.");
+  }
+}
