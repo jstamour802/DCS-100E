@@ -80,7 +80,8 @@ int output2_pulsedelay = 0;
 int output2_triggernum = 0;
 int output2_mode = 0;
 
-
+int previousMillis = 0;        // will store the last time the LED was updated
+int interval = 1000; 
 
 boolean LED_state[4] = {0};                          // stores the states of the LEDs
 
@@ -97,7 +98,7 @@ Serial.begin(BPS_115200);       // for debugging
 Serial.begin(115200);
 #endif
 
-
+pinMode(BOARD_LED_PIN, OUTPUT);
 
   pinMode(3, PWM);
   pinMode(2, INPUT);
@@ -156,6 +157,16 @@ delay(1000);
 //~~~~~~~~~~~~~~~~~~~~~~~~Main Loop~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 void loop()
 {
+  
+    if (millis() - previousMillis > interval) {
+        // Save the last time you blinked the LED
+        previousMillis = millis();
+
+        // If the LED is off, turn it on, and vice-versa:
+        toggleLED();
+    }
+    
+    
   
  int html;
   
