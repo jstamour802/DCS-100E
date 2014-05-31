@@ -42,6 +42,11 @@ command_t const gCommandTable[COMMAND_TABLE_SIZE] = {
   //***standard SCPI commands
   
   {"*IDN?",     get_device_ID, },
+  {"OP1B",      set_output1_brightness, },
+  {"OP1C",      set_output1_current, },
+  {"OP1P",      set_output1_pulsewidth, },
+  {"OP1D",      set_output1_delay, },
+  
  // {"*RST",      reset_device, },
  // {"SYST:ERR?", get_syst_err,  },
  // {"CLS",       clear_syst_err, },
@@ -76,7 +81,7 @@ char udp_reply_buffer[] = "command recieved";       // a string to send back
 EthernetUDP Udp;
 /* ---------------------------------------------------------------------------------------*/
 /*---------- SD Card Setup----------------------------------------------------------------*/
-const int sdchipSelect = SD_CHIP_SELECT_PIN;
+const int sdchipSelect = BOARD_SPI1_NSS_PIN;
 File webFile;                                        // the web page file on the SD card
 
 /* ---------------------------------------------------------------------------------------*/
@@ -132,7 +137,7 @@ Serial.begin(9600);
   
 //// initialize SD card
 //  Serial.println("Initializing SD card...");
-//  if (!SD.begin(sdchipSelect)) {
+//  if (!SD.begin(BOARD_SPI1_NSS_PIN)) {
 //    Serial.println("ERROR!");
 //    return;    // init failed
 //  }
@@ -147,8 +152,8 @@ Serial.begin(9600);
   
 
 // disable SD SPI
-//  pinMode(SD_CHIP_SELECT_PIN, OUTPUT);
-//  digitalWrite(SD_CHIP_SELECT_PIN, HIGH);
+//  pinMode(BOARD_SPI1_NSS_PIN, OUTPUT);
+//  digitalWrite(BOARD_SPI1_NSS_PIN, HIGH);
 
 
 //pinMode(W5100_RESET_PIN, OUTPUT);
@@ -219,14 +224,14 @@ void loop()
             client.println("Connection: keep-alive");
             client.println();
             // send web page
-            digitalWrite(SD_CHIP_SELECT_PIN, LOW);
+            digitalWrite(BOARD_SPI1_NSS_PIN, LOW);
             webFile = SD.open("index.htm");        // open web page file
                 if (webFile) {
               while(webFile.available()) {
                client.write(webFile.read()); // send web page to client
               }
               webFile.close(); // Try keeping the file in memory instead
-             digitalWrite(SD_CHIP_SELECT_PIN, HIGH);
+             digitalWrite(BOARD_SPI1_NSS_PIN, HIGH);
             } 
           }
           // display received HTTP request on serial port
@@ -333,13 +338,24 @@ void SetLEDs(void)
         
         output1_brightness = val;
         
-    }
+           }
 
     }
 
    
   } 
 
+  void set_output1_brightness(void){}
+  void set_output1_current(void){}
+  void set_output1_pulsewidth(void){}
+  void set_output1_delay(void){}
+  void get_output1_lighthead_info(void){}
+  
+  void set_output2_brighness(void){}
+  void set_output2_current(void){}
+  void set_output2_pulsewidth(void){}
+  void set_output2_delay(void){}
+  void get_output2_lighthead_info(void){}
   
 
 /**********************************************************************
@@ -525,7 +541,13 @@ void get_device_ID(void)
 {
 Serial.println(DEVICE_NAME);
 Serial.println(FIRMWARE_VER);
-	//todo add code here
+
+	
+Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+Udp.write(DEVICE_NAME);
+Udp.write(",");
+Udp.write(FIRMWARE_VER);
+Udp.endPacket();
 }
 
 
