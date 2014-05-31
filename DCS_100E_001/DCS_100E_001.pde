@@ -21,6 +21,11 @@
 #define COMMAND_TABLE_SIZE          (16)
 #define TO_UPPER(x) (((x >= 'a') && (x <= 'z')) ? ((x) - ('a' - 'A')) : (x))
 
+//#define AVR
+//#define ARM
+
+char rcvChar;
+int  bCommandReady = false;
 char gCommandBuffer[MAX_COMMAND_LEN + 1];
 char gParamBuffer[MAX_PARAMETER_LEN + 1];
 long gParamValue;
@@ -55,12 +60,20 @@ command_t const gCommandTable[COMMAND_TABLE_SIZE] = {
 /* --------------------------------------------------------------------------------------*/
 /* --------- TCP-IP/UDP Default setup----------------------------------------------------*/
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-IPAddress ip(192, 168, 24, 177);                     // IP address, may need to change depending on network
+IPAddress ip(192, 168, 1, 177);                     // IP address, may need to change depending on network
 EthernetServer server(80);                           // create a server at port 80
 char HTTP_req[REQ_BUF_SZ] = {0};                     // buffered HTTP request stored as null terminated string
 char req_index = 0;                                  // index into HTTP_req buffer
-//todo add UDP
 
+//---UDP
+unsigned int localPort = 8888;      // local port to listen on
+
+// buffers for receiving and sending data
+char udp_packet_buffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
+char udp_reply_buffer[] = "command recieved";       // a string to send back
+
+// An EthernetUDP instance to let us send and receive packets over UDP
+EthernetUDP Udp;
 /* ---------------------------------------------------------------------------------------*/
 /*---------- SD Card Setup----------------------------------------------------------------*/
 const int sdchipSelect = SD_CHIP_SELECT_PIN;
@@ -85,38 +98,40 @@ int interval = 1000;
 
 boolean LED_state[4] = {0};                          // stores the states of the LEDs
 
+
+#define ARDUINO
 //---------------------------------------------------------------------------------------//
 /*~~~~~~~~~~~~~~~~~~~~~~~~Begin Program Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 void setup()
 {
   
-  #ifdef MAPLE
-Serial.begin(BPS_115200);       // for debugging
+#ifdef MAPLE
+Serial.begin(BPS_9600);       // for debugging
 #endif 
 
 #ifdef ARDUINO
-Serial.begin(115200);
+Serial.begin(9600);
 #endif
 
-pinMode(BOARD_LED_PIN, OUTPUT);
 
-  pinMode(3, PWM);
+
+
   pinMode(2, INPUT);
   pinMode(5, INPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8, OUTPUT);
-  pinMode(9, OUTPUT);
+  
+//  pinMode(7, OUTPUT);
+//  pinMode(8, OUTPUT);
+//  pinMode(9, OUTPUT);
 
 
-  // disable w5100 SPI while starting SD
+//  disable w5100 SPI while starting SD
 //  pinMode(BOARD_SPI2_NSS_PIN,OUTPUT);
 //  digitalWrite(BOARD_SPI2_NSS_PIN,HIGH);
   
 
   
-//    // initialize SD card
-////  Serial.println("Initializing SD card...");
+//// initialize SD card
+//  Serial.println("Initializing SD card...");
 //  if (!SD.begin(sdchipSelect)) {
 //    Serial.println("ERROR!");
 //    return;    // init failed
@@ -124,27 +139,27 @@ pinMode(BOARD_LED_PIN, OUTPUT);
 //  Serial.println("SUCCESS.");
 //  // check for index.htm file
 //  if (!SD.exists("index.htm")) {
-////    Serial.println("ERROR - no index.htm!");
+//    Serial.println("ERROR - no index.htm!");
 //    return;  // can't find index file
 //  }
-////  Serial.println("SUCCESS - Found index.htm file.");
+//  Serial.println("SUCCESS - Found index.htm file.");
  
   
 
- // disable SD SPI
+// disable SD SPI
 //  pinMode(SD_CHIP_SELECT_PIN, OUTPUT);
 //  digitalWrite(SD_CHIP_SELECT_PIN, HIGH);
 
 
-pinMode(W5100_RESET_PIN, OUTPUT);
-digitalWrite(W5100_RESET_PIN, LOW);
-delay(100);
-digitalWrite(W5100_RESET_PIN, HIGH);
-delay(1000);
+//pinMode(W5100_RESET_PIN, OUTPUT);
+//digitalWrite(W5100_RESET_PIN, LOW);
+//delay(100);
+//digitalWrite(W5100_RESET_PIN, HIGH);
+//delay(1000);
 
   Ethernet.begin(mac, ip);  // initialize Ethernet device
   server.begin();           // start to listen for clients
-
+  Udp.begin(localPort);     // start UDP on port specified
 
 
 
@@ -158,14 +173,8 @@ delay(1000);
 void loop()
 {
   
-    if (millis() - previousMillis > interval) {
-        // Save the last time you blinked the LED
-        previousMillis = millis();
-
-        // If the LED is off, turn it on, and vice-versa:
-        toggleLED();
-    }
-    
+  check_serial();
+  check_udp();
     
   
  int html;
@@ -224,8 +233,8 @@ void loop()
           
          //Serial.print(HTTP_req); // comment this out to see if it improves reliability
          
-         
-          // reset buffer index and all buffer elements to 0
+		 
+                   // reset buffer index and all buffer elements to 0
           req_index = 0;
           StrClear(HTTP_req, REQ_BUF_SZ);
           break;
@@ -320,7 +329,7 @@ void SetLEDs(void)
         sscanf(ptr, "OP1B=%i", &val);
         printf("%i\n", val);
         Serial.print("Integer in string: ");Serial.println(val);
-        pwmWrite(3, val);
+//      pwmWrite(3, val);
         
         output1_brightness = val;
         
@@ -533,9 +542,7 @@ Serial.println(FIRMWARE_VER);
  *
  **********************************************************************/
 void check_serial(void){
-  char rcvChar;
-  int  bCommandReady = false;
-
+ 
   if (Serial.available() > 0) {
     /* Wait for a character. */
     rcvChar = Serial.read();
@@ -545,6 +552,61 @@ void check_serial(void){
 
     /* Build a new command. */
     bCommandReady = cliBuildCommand(rcvChar);
+  }
+
+  /* Call the CLI command processing routine to verify the command entered 
+   * and call the command function; then output a new prompt. */
+  if (bCommandReady == true) {
+    bCommandReady = false;
+    cliProcessCommand();
+    Serial.print('>');
+  }
+ }
+ 
+ /**********************************************************************
+ *
+ * Function:    check_udp
+ *
+ * Description: listens for commands sent to the controller via serial
+ *             
+ *
+ * Notes:     
+ *
+ * Returns:     
+ *
+ **********************************************************************/
+
+ void check_udp(void){
+ int packetSize = Udp.parsePacket();
+  if(packetSize)
+  {
+    Serial.print("Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remote = Udp.remoteIP();
+    for (int i =0; i < 4; i++)
+    {
+      Serial.print(remote[i], DEC);
+      if (i < 3)
+      {
+        Serial.print(".");
+      }
+    }
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+    
+    for(int i = 0; i<packetSize; i++){
+    // read the packet into packetBufffer
+    rcvChar =  Udp.read();
+    
+    // send a reply, to the IP address and port that sent us the packet we received
+    
+    
+    bCommandReady = cliBuildCommand(rcvChar);
+    }
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write("udp command recieved");
+    Udp.endPacket();
   }
 
   /* Call the CLI command processing routine to verify the command entered 
