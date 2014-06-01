@@ -135,19 +135,19 @@ Serial.begin(9600);
   
 
   
-//// initialize SD card
-//  Serial.println("Initializing SD card...");
-//  if (!SD.begin(BOARD_SPI1_NSS_PIN)) {
-//    Serial.println("ERROR!");
-//    return;    // init failed
-//  }
-//  Serial.println("SUCCESS.");
-//  // check for index.htm file
-//  if (!SD.exists("index.htm")) {
-//    Serial.println("ERROR - no index.htm!");
-//    return;  // can't find index file
-//  }
-//  Serial.println("SUCCESS - Found index.htm file.");
+// initialize SD card
+  Serial.println("Initializing SD card...");
+  if (!SD.begin(BOARD_SPI1_NSS_PIN)) {
+    Serial.println("ERROR!");
+    return;    // init failed
+  }
+  Serial.println("SUCCESS.");
+  // check for index.htm file
+  if (!SD.exists("index.htm")) {
+   Serial.println("ERROR - no index.htm!");
+   return;  // can't find index file
+  }
+  Serial.println("SUCCESS - Found index.htm file.");
  
   
 

@@ -176,39 +176,39 @@
 	
     <body onload="GetArduinoIO()">
         <h1>DCS-100E -- Lighting Appliance</h1>
-		<h2>Configuration Tool</h2>
+		<h4>Configuration Tool</h4>
 		
 	<!--	<p> <id="device_status">Device Not Ready</div></p> -->
 		<div>
-		<fieldset class="IO_box_larger">
+		<fieldset  name="op1_fieldset" class="IO_box_larger">
 			<legend><h1>Output1</h1></legend>
 			
 			<h2>Mode</h2>
 			<form id= "op1_mode" name="op1_mode_form">
-				<input type="radio" name="mode" value="constant" checked>Constant
-				<input type="radio" name="mode" value="pulsed">Pulsed
-				<input type="radio" name="mode" value="gated">Gated
+				<input type="radio" id="op1_constant" name="op1_mode" value="constant" checked>Constant
+				<input type="radio" id="op1_pulsed"   name="op1_mode" value="pulsed">Pulsed
+				<input type="radio" id="op1_gated"    name="op1_mode" value="gated">Gated
 			</form>
 			<h2>Trigger</h2>
 			    
-				<input type="radio" name="trigger" value="Trigger1" checked>Trigger 1
-				<input type="radio" name="trigger" value="Trigger2">Trigger 2
+				<input type="radio" id="op1_trigger1" name="op1_trigger" value="Trigger1" checked>Trigger 1
+				<input type="radio" id="op1_trigger2" name="op1_trigger" value="Trigger2">Trigger 2
 			
 			<h2>Trigger Edge</h2>
-				<input type="radio" name="edge" value="leading" checked>Leading Edge
-				<input type="radio" name="edge" value="trailing">Trailing Edge
+				<input type="radio" id="op1_rising"   name="op1_edge" value="leading" checked>Leading Edge
+				<input type="radio" id="op1_trailing" name="op1_edge" value="trailing">Trailing Edge
 			
 		    <h2>Settings<h2>
             <form id= "op1_brightness" name="op1_brightness_form">
-				<input class="op1"type="range" id="OP1B" min="0" max="100" step="1" value="0"  oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />                <!---->
-				<input type="number" name="amountInput"  min="0" max="100" step="1" value="0" oninput="this.form.OP1B.value=this.value" onchange="GetOP1()" /> Brightness (%)<br>
+				<input type="range" id="OP1B" name="op1_brightness" min="0" max="100" step="1" value="0"  oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />                <!---->
+				<input type="number" name="amountInput"  min="0" max="100" step="1" value="0"  oninput="this.form.OP1B.value=this.value" onchange="GetOP1()" /> Brightness (%)<br>
 			</form>
 			<form id= "op1_pulsewidth" name="op1_pulsewidth_form">
-				<input class="op1"type="range" id="OP1P" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="range" id="OP1P" name="op1_pulsewidth" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
 				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP1P.value=this.value" onchange="GetOP1()"/> Pulse Width (us)<br>
 			</form>
 			<form id= "op1_pulsedelay" name="op1_pulsedelay_form">
-				<input class="op1"type="range" id="OP1D" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
+				<input type="range" id="OP1D" name="op1_delay" min="0" max="65535" step="1" value="0" oninput="this.form.amountInput.value=this.value" onchange="GetOP1()" />
 				<input type="number" name="amountInput"  min="0" max="65535" step="1" value="0" oninput="this.form.OP1D.value=this.value" onchange="GetOP1()"/> Pulse Delay (us)<br>
 			</form>
 			<p> <class="small_text">value changes take effect immediately</p>
@@ -229,10 +229,10 @@
 			</form>
 			<h2>Trigger</h2>
 			
-				<input type="radio" name="trigger" value="trigger1">Trigger1
+				<input type="radio" name="trigger" value="trigger1" checked>Trigger1
 				<input type="radio" name="trigger" value="trigger2">Trigger2
 			<h2>Trigger Edge</h2>
-				<input type="radio" name="edge" value="leading">Leading Edge
+				<input type="radio" name="edge" value="leading" checked>Leading Edge
 				<input type="radio" name="edge" value="trailing">Trailing Edge
 			
 		    <h2>Settings<h2>
